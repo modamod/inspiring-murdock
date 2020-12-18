@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  VPCCidr:
+    Type: String
+    Description: VPC Cidr to use
+    Default: "10.0.0.0/16"
+  PrivSubnetCidr1:
+    Type: String
+    Description: Private Subnet1 Cidr
+    Default: "10.0.0.0/24"
+  PrivSubnetCidr2:
+    Type: String
+    Description: Private Subnet1 Cidr
+    Default: "10.0.1.0/24"
+  PubSubnetCidr1:
+    Type: String
+    Description: Public Subnet1 Cidr
+    Default: "10.0.2.0/24"
+  PubSubnetCidr2:
+    Type: String
+    Description: Public Subnet1 Cidr
+    Default: "10.0.3.0/24"
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidr
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: salt-vpc
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivSubnetCidr1
+      VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivSubnetCidr2
+      VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PubSubnetCidr1
+      VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PubSubnetCidr2
+      VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+
+  MasterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Master Security Group
+      VpcId: !Ref VPC
+
+  SshSecurityGroupIgress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: TCP
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+      GroupName: !Ref MasterSecurityGroup
+
+  ClassicLoadbalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Listeners:
+        - InstancePort: "22"
+          LoadBalancerPort: "22"
+          Protocol: TCP
+        - InstancePort: "4505"
+          LoadBalancerPort: "4505"
+          Protocol: TCP
+        - InstancePort: "4506"
+          LoadBalancerPort: "4506"
+          Protocol: TCP
+      LoadBalancerName: master-elb
+
+Outputs:
+  ClassicLB:
+    Description: "Salt master classic LB used to connect to the master instance and for minions to find the master"
+    Value: !Ref  ClassicLoadbalancer
+    Export:
+      Name: !Sub "${AWS::StackName}-clb"

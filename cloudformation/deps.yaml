@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deps template used to define all resources used by instances
+
+Parameters:
+  LambdaRole:
+    Type: String
+    Description: Kinesis Lambda execution role
+  StreamName:
+    Type: String
+    Default: salt-stream
+Resources:
+  KinesisStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      ShardCount: 1
+      Name: !Ref StreamName
+
+  KinesisLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: "lambda_handler"
+      Role: !Ref LambdaRole
+      Runtime: python3.8
+      MemorySize: 256
+      FunctionName: kinesis-lambda
+      Code:
+        ZipFile: ../lambdas/kinesis_lambda.zip
+    DependsOn:
+      - "KinesisStream"

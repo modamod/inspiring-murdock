@@ -1,0 +1,11 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  TopicName:
+    Type: String
+
+Resources:
+  Topic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: !Ref TopicName

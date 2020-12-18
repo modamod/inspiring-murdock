@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  MasterLoadBalancer:
+    Type: String
+    Description: Master loadblancer
+  MasterIP:
+    Type: String
+    Description: Master instance profile
+  AMI:
+    Type: AWS::EC2::Image::Id
+    Description: Amazon linux 2 amazon image id
+    Default: ami-04d29b6f966df1537
+  MasterInstanceType:
+    Type: String
+    Description: Master instance instance type
+    Default: t3.medium
+  Keypair:
+    Type: String
+    Description: Instance Keypair
+    Default: saltkeypair
+  SecurityGroups:
+    Type: CommaDelimitedList
+    Description: List of security groups to use with salt instances
+
+Resources:
+
+
+  MasterLT:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: master-launch-template
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Name: !Ref MasterIP
+        ImageId: !Ref AMI
+        InstanceType: !Ref MasterInstanceType
+        KeyName: !Ref Keypair
+        SecurityGroupIds: !Ref SecurityGroups
+
+  MasterAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: "1"
+      MinSize: "0"
+      LoadBalancerNames:
+        - !Ref MasterLoadBalancer
+      LaunchTemplate:
+        Version: $Latest
+        LaunchTemplateId: !Ref MasterLT
+      AutoScalingGroupName: MasterAsg
+      AvailabilityZones: !GetAZs
+        Ref: AWS::Region
