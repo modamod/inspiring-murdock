@@ -1,0 +1,13 @@
+[
+    {
+        "ResponseMetadata": {
+            "HTTPHeaders": {
+                "server": "amazon.com"
+            },
+            "HTTPStatusCode": 200,
+            "RequestId": "b9b4b068-3a41-11e5-94eb-example",
+            "RetryAttempts": 0
+        },
+        "StackEvents": []
+    }
+]

@@ -8,50 +8,17 @@ import pytest
 import yaml
 from botocore import exceptions
 from botocore.exceptions import ClientError
-from inspiring_murdock.aws.cloudformation import build, is_valid
+from inspiring_murdock.aws.cloudformation import build, is_valid, wait4cf, get_cf_events
 from inspiring_murdock.aws.util import session, to_cf_params
 from inspiring_murdock.util import get_logger
 from moto import mock_cloudformation
 from io import StringIO
 import logging
-
-class PatchSession:
-    class Cloudformation:
-        exceptions = exceptions
-
-        def validate_template(self, TemplateBody):
-            raise ClientError(
-                error_response={
-                    "Error": {
-                        "Code": "Testing",
-                        "Message": "This is a testing exception",
-                    }
-                },
-                operation_name="Testing",
-            )
-
-        def create_stack(
-            self,
-            TemplateBody,
-            Parameters,
-            StackName,
-            DisableRollback,
-            Capabilities,
-            Tags,
-        ):
-            raise ClientError(
-                error_response={
-                    "Error": {
-                        "Code": "Testing",
-                        "Message": "This is a testing exception",
-                    }
-                },
-                operation_name="Testing",
-            )
-
-    def client(self, service="cloudformation"):
-        return self.Cloudformation()
-
+from pprint import pprint
+import types
+import json
+from tests.helpers import PatchSession, PatchSessionInProgressEvent, PatchSessionEmptyEvent
+from functools import partial
 
 def patch_validate_template(TemplateBody):  # pylint: disable=unused-argument
     """ Side Effect function used to mock aws cloudformation client validate_template method """
@@ -94,13 +61,13 @@ def test_validate_template():
 
 @mock_cloudformation
 def test_build():
-    ''' Test function for build cloudformation task '''
+    """ Test function for build cloudformation task """
     logger = get_logger()
     try:
         template = open(f"{Path(__file__).parent}/data/sample_template.yaml").read()
-        parameters = dict(yaml.safe_load(
-            open(f"{Path(__file__).parent}/data/sample_params.yaml")
-        ))
+        parameters = dict(
+            yaml.safe_load(open(f"{Path(__file__).parent}/data/sample_params.yaml"))
+        )
     except FileNotFoundError as exp:
         print("File not found", file=sys.stderr)
         pytest.fail(exp)
@@ -118,7 +85,11 @@ def test_build():
     assert result.get("ResponseMetadata").get("HTTPStatusCode") == 200
     with pytest.raises(exceptions.ParamValidationError):
         result = build(
-            aws_session, "test", "", to_cf_params(parameters, use_previous=False), logger=logger
+            aws_session,
+            "test",
+            "",
+            to_cf_params(parameters, use_previous=False),
+            logger=logger,
         )
     # with patch('sys.stderr', new_callable=StringIO) as fake_out:
     string_stream = StringIO()
@@ -128,9 +99,11 @@ def test_build():
         "test",
         template,
         to_cf_params(parameters, use_previous=False),
-        logger=logger
+        logger=logger,
     )
-    assert 'Stack already exists, use update_stack instead...' in string_stream.getvalue()
+    assert (
+        "Stack already exists, use update_stack instead..." in string_stream.getvalue()
+    )
 
     with pytest.raises(exceptions.ClientError) as client_exception:
         result = build(
@@ -140,3 +113,37 @@ def test_build():
             to_cf_params(parameters, use_previous=False),
         )
     assert "This is a testing exception" in str(client_exception.value)
+
+
+@mock_cloudformation
+def test_wait4cf():
+
+    def empty_paginator():
+        pass
+    aws_session = session()
+
+    stack_name = "test"
+    try:
+        template = open(f"{Path(__file__).parent}/data/sample_template.yaml").read()
+        parameters = dict(
+            yaml.safe_load(open(f"{Path(__file__).parent}/data/sample_params.yaml"))
+        )
+    except FileNotFoundError as exp:
+        print("File not found", file=sys.stderr)
+        pytest.fail(exp)
+    except yaml.scanner.ScannerError as yaml_exp:
+        print("Malformed yaml file")
+        pytest.fail(yaml_exp)
+
+    build(
+        aws_session,
+        stack_name,
+        template,
+        to_cf_params(parameters, use_previous=False),
+    )
+    assert wait4cf(aws_session, stack_name)
+    with pytest.raises(TimeoutError):
+        res = wait4cf(PatchSessionInProgressEvent(), stack_name, sleep_time=0.5, timeout=1)
+        raise Exception(res)
+    with pytest.raises(ClientError):
+        res = wait4cf(aws_session, "non_existing_stack", sleep_time=1, timeout=1)

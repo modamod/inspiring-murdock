@@ -1,0 +1,35 @@
+[
+    {
+        "ResponseMetadata": {
+            "HTTPHeaders": {
+                "server": "amazon.com"
+            },
+            "HTTPStatusCode": 200,
+            "RequestId": "b9b4b068-3a41-11e5-94eb-example",
+            "RetryAttempts": 0
+        },
+        "StackEvents": [
+            {
+                "EventId": "2b7611f4-b404-4bb5-8cfd-d98420a5d027",
+                "LogicalResourceId": "test",
+                "PhysicalResourceId": "arn:aws:cloudformation:us-east-1:123456789:stack/test/b919a24e-6f89-4a46-9a4c-cf293fa86904",
+                "ResourceStatus": "CREATE_COMPLETE",
+                "ResourceType": "AWS::CloudFormation::Stack",
+                "StackId": "arn:aws:cloudformation:us-east-1:123456789:stack/test/b919a24e-6f89-4a46-9a4c-cf293fa86904",
+                "StackName": "test",
+                "Timestamp": "2020-12-19 11:28:16.934060+00:00"
+            },
+            {
+                "EventId": "4b81b203-51b2-4dbb-af96-0dd0cb9bce16",
+                "LogicalResourceId": "test",
+                "PhysicalResourceId": "arn:aws:cloudformation:us-east-1:123456789:stack/test/b919a24e-6f89-4a46-9a4c-cf293fa86904",
+                "ResourceStatus": "CREATE_IN_PROGRESS",
+                "ResourceStatusReason": "User Initiated",
+                "ResourceType": "AWS::CloudFormation::Stack",
+                "StackId": "arn:aws:cloudformation:us-east-1:123456789:stack/test/b919a24e-6f89-4a46-9a4c-cf293fa86904",
+                "StackName": "test",
+                "Timestamp": "2020-12-19 11:28:16.933567+00:00"
+            }
+        ]
+    }
+]

@@ -69,7 +69,6 @@ def get_cf_events(session, stack_name, logger=None):
     paginator = cf.get_paginator("describe_stack_events")
     result = []
     try:
-        # raise Exception(cf.can_paginate('describe_stack_events'))
         pages = paginator.paginate(StackName=stack_name)
     except cf.exceptions.ClientError as exp:
         logger.error("Something went wrong when waiting for stack status")
@@ -88,14 +87,7 @@ def wait4cf(session, stack_name, sleep_time=60, timeout=3600, logger=None):
     start_time = time.time()
     while True:
         events = get_cf_events(session, stack_name, logger=logger)
-        try:
-            latest_event = next(events)
-        except StopIteration:
-            latest_event = None
-
-        if not latest_event:
-            logger.warning("No events found for %s", stack_name)
-            return False
+        latest_event = next(events)
 
         if time.time() - start_time >= timeout:
             logger.warning("Waiting for cf status timed out.")
