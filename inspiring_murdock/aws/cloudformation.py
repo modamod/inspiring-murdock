@@ -82,7 +82,6 @@ def get_cf_events(session, stack_name, logger=None):
     return events
 
 
-@mock_cloudformation
 def wait4cf(session, stack_name, sleep_time=60, timeout=3600, logger=None):
     """ Function to wait for cloudformation to finish """
     logger = logging.getLogger("inspiring_murdock") if not logger else logger
