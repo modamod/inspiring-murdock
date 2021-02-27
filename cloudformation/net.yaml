@@ -26,7 +26,8 @@ Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Ref VPCCidr
+      CidrBlock:
+        Ref: VPCCidr
       EnableDnsSupport: true
       Tags:
         - Key: Name
@@ -35,8 +36,10 @@ Resources:
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref PrivSubnetCidr1
-      VpcId: !Ref VPC
+      CidrBlock:
+        Ref: PrivSubnetCidr1
+      VpcId:
+        Ref: VPC
       AvailabilityZone:
         Fn::Select:
           - 0
@@ -44,8 +47,10 @@ Resources:
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref PrivSubnetCidr2
-      VpcId: !Ref VPC
+      CidrBlock:
+        Ref: PrivSubnetCidr2
+      VpcId:
+        Ref: VPC
       AvailabilityZone:
         Fn::Select:
           - 1
@@ -53,8 +58,10 @@ Resources:
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref PubSubnetCidr1
-      VpcId: !Ref VPC
+      CidrBlock:
+        Ref: PubSubnetCidr1
+      VpcId:
+        Ref: VPC
       AvailabilityZone:
         Fn::Select:
           - 0
@@ -62,8 +69,10 @@ Resources:
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref PubSubnetCidr2
-      VpcId: !Ref VPC
+      CidrBlock:
+        Ref: PubSubnetCidr2
+      VpcId:
+        Ref: VPC
       AvailabilityZone:
         Fn::Select:
           - 1
@@ -73,7 +82,8 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Master Security Group
-      VpcId: !Ref VPC
+      VpcId:
+        Ref: VPC
 
   SshSecurityGroupIgress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -82,14 +92,15 @@ Resources:
       FromPort: 22
       ToPort: 22
       CidrIp: 0.0.0.0/0
-      GroupName: !Ref MasterSecurityGroup
+      GroupName:
+        Ref: MasterSecurityGroup
 
   ClassicLoadbalancer:
     Type: AWS::ElasticLoadBalancing::LoadBalancer
     Properties:
       Listeners:
         - InstancePort: "22"
-          LoadBalancerPort: "22"
+          LoadBalancerPort: "2222"
           Protocol: TCP
         - InstancePort: "4505"
           LoadBalancerPort: "4505"
@@ -102,6 +113,8 @@ Resources:
 Outputs:
   ClassicLB:
     Description: "Salt master classic LB used to connect to the master instance and for minions to find the master"
-    Value: !Ref  ClassicLoadbalancer
+    Value:
+      Ref:  ClassicLoadbalancer
     Export:
-      Name: !Sub "${AWS::StackName}-clb"
+      Name:
+        Fn::Sub: "${AWS::StackName}-clb"

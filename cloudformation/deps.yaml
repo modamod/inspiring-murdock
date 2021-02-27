@@ -13,13 +13,15 @@ Resources:
     Type: AWS::Kinesis::Stream
     Properties:
       ShardCount: 1
-      Name: !Ref StreamName
+      Name:
+        Ref: StreamName
 
   KinesisLambda:
     Type: AWS::Lambda::Function
     Properties:
       Handler: "lambda_handler"
-      Role: !Ref LambdaRole
+      Role:
+        Ref: LambdaRole
       Runtime: python3.8
       MemorySize: 256
       FunctionName: kinesis-lambda

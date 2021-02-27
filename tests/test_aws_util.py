@@ -1,19 +1,6 @@
-import random
+"""Test module for inspiring_murdock.aws.util package"""
 
-import pytest
-from botocore import exceptions
-from inspiring_murdock.aws.util import session, to_cf_params
-from moto import mock_cloudformation
-import yaml
-from pathlib import Path
-
-def test_session():
-    aws_session = session()
-    assert aws_session.region_name == "us-east-1"
-    assert aws_session.profile_name == "default"
-
-    with pytest.raises(exceptions.ProfileNotFound):
-        session(profile=f"RandomProfileName{random.random()}")
+from inspiring_murdock.aws.util import to_cf_params
 
 
 def test_to_cf_params():
@@ -23,7 +10,7 @@ def test_to_cf_params():
     result = to_cf_params(params)
     assert result
     assert len(result) == 3
-    assert result[0].get('ParameterKey') == 'Param1'
-    assert result[0].get('ParameterValue') == 'Value1'
-    assert not result[0].get('UsePreviousValue')
-    assert result[0].get('ResolvedValue') == ''
+    assert result[0].get("ParameterKey") == "Param1"
+    assert result[0].get("ParameterValue") == "Value1"
+    assert not result[0].get("UsePreviousValue")
+    assert result[0].get("ResolvedValue") == ""

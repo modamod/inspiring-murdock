@@ -32,11 +32,16 @@ Resources:
       LaunchTemplateName: master-launch-template
       LaunchTemplateData:
         IamInstanceProfile:
-          Name: !Ref MasterIP
-        ImageId: !Ref AMI
-        InstanceType: !Ref MasterInstanceType
-        KeyName: !Ref Keypair
-        SecurityGroupIds: !Ref SecurityGroups
+          Name:
+            Ref: MasterIP
+        ImageId:
+          Ref: AMI
+        InstanceType:
+          Ref: MasterInstanceType
+        KeyName:
+          Ref: Keypair
+        SecurityGroupIds:
+          Ref: SecurityGroups
 
   MasterAsg:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -44,10 +49,13 @@ Resources:
       MaxSize: "1"
       MinSize: "0"
       LoadBalancerNames:
-        - !Ref MasterLoadBalancer
+        -
+          Ref: MasterLoadBalancer
       LaunchTemplate:
         Version: $Latest
-        LaunchTemplateId: !Ref MasterLT
+        LaunchTemplateId:
+          Ref: MasterLT
       AutoScalingGroupName: MasterAsg
-      AvailabilityZones: !GetAZs
-        Ref: AWS::Region
+      AvailabilityZones:
+        Fn::GetAZs:
+          Ref: AWS::Region

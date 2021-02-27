@@ -1,14 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
+
 Parameters:
   RepoName:
     Type: String
-    Default: salt
+    Default: "salt"
   S3Bucket:
     Type: String
-    Default: moda-salt-bucket # Needed to add moda since salt-bucket is used
+    Default: "moda-salt-bucket" # Needed to add moda since salt-bucket is used
   StreamName:
     Type: String
-    Default: salt-stream
+    Default: "stream"
+
 Resources:
 
 
@@ -16,7 +18,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref MasterInstanceRole
+        - Ref: MasterInstanceRole
 
   CodeCommitManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -35,7 +37,8 @@ Resources:
               - "codecommit:Get*"
               - "codecommit:List*"
               - "codecommit:GitPull"
-            Resource: !Sub "arn:aws:codecommit:us-east-1::${RepoName}"
+            Resource:
+              Fn::Sub: "arn:aws:codecommit:us-east-1::${RepoName}"
 
   S3AccessManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -50,19 +53,27 @@ Resources:
                 - "s3:Put*"
                 - "s3:Delete*"
                 - "s3:List*"
-            Resource: !Sub "arn:aws:s3:us-east-1::${S3Bucket}"
+            Resource:
+              Fn::Sub: "arn:aws:s3:::${S3Bucket}"
   MasterInstanceRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument: Json
       Description: Salt master Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
       ManagedPolicyArns:
-        - !Ref CodeCommitManagedPolicy
-        - !Ref S3AccessManagedPolicy
+        - Ref: CodeCommitManagedPolicy
+        - Ref: S3AccessManagedPolicy
         - "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
       Path: /
-      PermissionsBoundary: String
-      RoleName: salt-master-role
+      RoleName: MasterRole
 
   KinesisLambdaPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -75,19 +86,30 @@ Resources:
                 - "kinesis:Get*"
                 - "kinesis:List*"
                 - "kinesis:Describe*"
-            Resource: !Sub "arn:aws:kinesis:${AWS::Region}::${StreamName}"
+            Resource:
+              Fn::Sub: "arn:aws:kinesis:${AWS::Region}::${StreamName}"
 
   KinesisLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument: Json
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
       RoleName: "kinesis-lambda-role"
       ManagedPolicyArns:
-        - !Ref KinesisLambdaPolicy
+        - Ref: KinesisLambdaPolicy
 
 Outputs:
   MasterIP:
     Description: Mater role instance profile
-    Value: !Ref MasterInstanceProfile
+    Value:
+      Ref: MasterInstanceProfile
     Export:
-      Name: !Sub "${AWS::StackName}-master-ip"
+      Name:
+        Fn::Sub: "${AWS::StackName}-master-ip"

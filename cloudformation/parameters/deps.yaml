@@ -1,0 +1,2 @@
+LambdaRole: arn:aws:iam::{{ account_id }}:role/kinesis-lambda-role
+StreamName: salt-stream

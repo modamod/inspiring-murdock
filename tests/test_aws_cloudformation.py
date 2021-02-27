@@ -1,27 +1,38 @@
-""" Cloudformation module tests """
+"""Cloudformation module tests."""
 
+import json
+import logging
 import sys
+import types
+from functools import partial
+from io import StringIO
 from pathlib import Path
+from pprint import pprint
 from unittest.mock import Mock, patch
 
 import pytest
 import yaml
 from botocore import exceptions
 from botocore.exceptions import ClientError
-from inspiring_murdock.aws.cloudformation import build, is_valid, wait4cf, get_cf_events
-from inspiring_murdock.aws.util import session, to_cf_params
-from inspiring_murdock.util import get_logger
 from moto import mock_cloudformation
-from io import StringIO
-import logging
-from pprint import pprint
-import types
-import json
-from tests.helpers import PatchSession, PatchSessionInProgressEvent, PatchSessionEmptyEvent
-from functools import partial
+
+from inspiring_murdock.aws.cloudformation import (
+    build,
+    get_cf_events,
+    get_cf_status,
+    is_valid,
+)
+from inspiring_murdock.aws.util import profile_name, region, to_cf_params
+from inspiring_murdock.util import get_logger
+from tests.helpers import (
+    PatchSession,
+    PatchSessionEmptyEvent,
+    PatchSessionInProgressEvent,
+)
+
 
 def patch_validate_template(TemplateBody):  # pylint: disable=unused-argument
-    """ Side Effect function used to mock aws cloudformation client validate_template method """
+    """Side Effect function used to mock aws cloudformation client validate_template method."""
 
     raise ClientError(
         error_response={
@@ -33,17 +44,22 @@ def patch_validate_template(TemplateBody):  # pylint: disable=unused-argument
 
 @mock_cloudformation
 def test_validate_template():
-    """ Test function to test validate_template from Cloudfomation invoke module """
+    """Test function to test validate_template from Cloudfomation invoke module."""
 
     valid_template = open(f"{Path(__file__).parent}/data/valid_template.yaml")
     unvalid_template = open(f"{Path(__file__).parent}/data/unvalid_template.yaml")
     aws_session = session()
     mocked = Mock(
-        session,
+        profile_name,
+        region,
         side_effect=PatchSession,
     )
-    assert is_valid(session=session(), template=valid_template.read())
-    assert not is_valid(session=session(), template=unvalid_template.read())
+    assert is_valid(
+        profile_name=profile_name, region=region, template=valid_template.read()
+    )
+    assert not is_valid(
+        profile_name=profile_name, region=region, template=unvalid_template.read()
+    )
     valid_template.close()
     unvalid_template.close()
     with pytest.raises(
@@ -61,7 +77,7 @@ def test_validate_template():
 
 @mock_cloudformation
 def test_build():
-    """ Test function for build cloudformation task """
+    """Test function for build cloudformation task."""
     logger = get_logger()
     try:
         template = open(f"{Path(__file__).parent}/data/sample_template.yaml").read()
@@ -76,7 +92,8 @@ def test_build():
         pytest.fail(yaml_exp)
     aws_session = session()
     result = build(
-        aws_session,
+        profile_name,
+        region,
         "test",
         template,
         to_cf_params(parameters, use_previous=False),
@@ -85,11 +102,11 @@ def test_build():
     assert result.get("ResponseMetadata").get("HTTPStatusCode") == 200
     with pytest.raises(exceptions.ParamValidationError):
         result = build(
-            aws_session,
+            profile_name,
+            region,
             "test",
             "",
             to_cf_params(parameters, use_previous=False),
-            logger=logger,
         )
     # with patch('sys.stderr', new_callable=StringIO) as fake_out:
     string_stream = StringIO()
@@ -99,7 +116,6 @@ def test_build():
         "test",
         template,
         to_cf_params(parameters, use_previous=False),
-        logger=logger,
     )
     assert (
         "Stack already exists, use update_stack instead..." in string_stream.getvalue()
@@ -116,10 +132,10 @@ def test_build():
 
 
 @mock_cloudformation
-def test_wait4cf():
-
+def test_get_cf_status():
     def empty_paginator():
         pass
+
     aws_session = session()
 
     stack_name = "test"
@@ -141,9 +157,5 @@ def test_wait4cf():
         template,
         to_cf_params(parameters, use_previous=False),
     )
-    assert wait4cf(aws_session, stack_name)
-    with pytest.raises(TimeoutError):
-        res = wait4cf(PatchSessionInProgressEvent(), stack_name, sleep_time=0.5, timeout=1)
-        raise Exception(res)
-    with pytest.raises(ClientError):
-        res = wait4cf(aws_session, "non_existing_stack", sleep_time=1, timeout=1)
+    status = get_cf_status(profile_name, region, stack_name)
+    assert "_COMPLETE" in status.get("StackStatus")

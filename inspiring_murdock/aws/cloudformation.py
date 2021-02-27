@@ -1,78 +1,135 @@
-import sys
-import logging
 import itertools
+import logging
+import sys
 import time
 
-from moto import mock_cloudformation
+from boto3.session import Session
 
 
-def is_valid(session, template, logger=None):
-    """ Function to determine if a stack is valid or not """
+def is_valid(
+    profile_name: str, region: str, template: "json", endpoint_url: str = None
+) -> dict:
+    """Function to determine if a stack is valid or not.
 
-    logger = logging.getLogger("inspiring_murdock") if not logger else logger
-    cf = session.client("cloudformation")
-    try:
-        result = cf.validate_template(TemplateBody=template)
-    except cf.exceptions.ClientError as exp:
-        if (
-            exp.response.get("Error").get("Code") == "ValidationError"
-        ):  # Going to remove coverage test since coverage can't cover exceptions with if condition
-            logger.error("Unvalid template...")
-            logger.error(exp)
-        else:
-            logger.critical("Something went wrong when validating the template...")
-            raise
-        return False
+    Args:
+        profile_name:
+            AWS profile name to use to create the boto3 session.
+        region:
+            AWS region name to use to create boto3 session.
+        template:
+            Cloudformation template body to validate.
+            It should be a valid json object.
+        endpoint_url:
+            AWS Endpoint could be use to mock AWS requests using moto server.
+    Returns
+        Dict containing the response from cloudformation service.
+    """
+
+    cf = Session(profile_name=profile_name, region_name=region).client(
+        "cloudformation", endpoint_url=endpoint_url
+    )
+    result = cf.validate_template(TemplateBody=template)
     return result
 
 
 def build(
-    session,
+    profile_name,
+    region,
     stack_name,
     template_body,
     parameters,
-    tags=[],
-    capabilities=[],
+    tags=None,
+    capabilities=None,
     disable_rollback=False,
-    logger=None,
+    endpoint_url=None,
 ):
-    """ Function to build a cloudformation stack """
-    cf = session.client("cloudformation")
-    logger = logging.getLogger("inspiring_murdock") if not logger else logger
-    try:
-        result = cf.create_stack(
-            TemplateBody=template_body,
-            Parameters=parameters,
-            StackName=stack_name,
-            DisableRollback=disable_rollback,
-            Capabilities=capabilities,
-            Tags=tags,
+    """Function to build a cloudformation stack
+
+    Args:
+        profile_name:
+            AWS profile name to use to create the boto3 session.
+        region:
+            AWS region name to use to create boto3 session.
+        stack_name:
+            Cloudformation stack name.
+        template_body:
+            Cloudformation template body to validate.
+            It should be a valid json object.
+        parameters:
+            List of Cloudformation compatible parameters dict.
+            Example:
+                [{
+                    "ParameterKey": "key",
+                    "ParameterValue": "value",
+                    "UsePreviousValue": False,
+                    "ResolvedValue": "",
+                }]
+        tags:
+            List of Cloudformation compatible tags.
+            Example:
+                [{
+                    "Key": "tag1",
+                    "Value": "value1
+                }]
+        capabilities:
+            List of AWS IAM capabilities.
+            Example:
+
+        endpoint_url:
+            AWS Endpoint could be use to mock AWS requests using moto server.
+    """
+    if endpoint_url is not None:
+        cf = Session(profile_name=profile_name, region_name=region).client(
+            "cloudformation", endpoint_url=endpoint_url
         )
-    except cf.exceptions.ClientError as exp:
-        if exp.response.get("Error").get("Code") == "AlreadyExistsException":
-            logger.info(
-                "'%s' Stack already exists, use update_stack instead...", stack_name
-            )
-            logger.info(exp)
-            return False
+    else:
+        cf = Session(profile_name=profile_name, region_name=region).client(
+            "cloudformation"
+        )
 
-        logger.error("Something went wrong when building the stack")
-        raise
+    list_capabilities = [] if capabilities is None else capabilities
+    list_tags = [] if tags is None else tags
 
+    result = cf.create_stack(
+        TemplateBody=template_body,
+        Parameters=parameters,
+        StackName=stack_name,
+        DisableRollback=disable_rollback,
+        Capabilities=list_capabilities,
+        Tags=list_tags,
+    )
     return result
 
 
-def get_cf_events(session, stack_name, logger=None):
-    """ Function that returns cf events """
-    logger = logging.getLogger("inspiring_murdock") if not logger else logger
-    cf = session.client("cloudformation")
+def describe_stack(profile_name, region, stack_name, endpoint_url=None):
+    cf = Session(profile_name=profile_name, region_name=region).client(
+        "cloudformation", endpoint_url=endpoint_url
+    )
+
+    response = cf.describe_stacks(StackName=stack_name)
+
+    return response
+
+
+def get_cf_status(profile_name, region, stack_name, endpoint_url=None):
+
+    response = describe_stack(
+        profile_name, region, stack_name, endpoint_url=endpoint_url
+    )
+
+    return {
+        "StackStatus": response.get("Stacks")[0].get("StackStatus"),
+        "StackStatusReason": response.get("Stacks")[0].get("StackStatusReason"),
+    }
+
+
+def get_cf_events(profile_name, region, stack_name, endpoint_url=None):
+    """Function that returns cf events."""
+    cf = Session(profile_name=profile_name, region_name=region).client(
+        "cloudformation", endpoint_url=endpoint_url
+    )
     paginator = cf.get_paginator("describe_stack_events")
-    result = []
-    try:
-        pages = paginator.paginate(StackName=stack_name)
-    except cf.exceptions.ClientError as exp:
-        logger.error("Something went wrong when waiting for stack status")
-        logger.error(exp)
+    pages = paginator.paginate(StackName=stack_name)
     events = (
         itertools.chain(*map(lambda x: x.get("StackEvents"), pages))
         if pages
@@ -81,31 +138,10 @@ def get_cf_events(session, stack_name, logger=None):
     return events
 
 
-def wait4cf(session, stack_name, sleep_time=60, timeout=3600, logger=None):
-    """ Function to wait for cloudformation to finish """
-    logger = logging.getLogger("inspiring_murdock") if not logger else logger
-    start_time = time.time()
-    while True:
-        events = get_cf_events(session, stack_name, logger=logger)
-        latest_event = next(events)
+def delete(profile_name, region, stack_name, endpoint_url=None):
 
-        if time.time() - start_time >= timeout:
-            logger.warning("Waiting for cf status timed out.")
-            logger.warning(
-                "latest cf status: %s", latest_event.get("ResourceStatus", "Unknown")
-            )
-            raise TimeoutError(
-                "Timedout waiting for CF to finish status(%s)"
-                % latest_event.get("ResourceStatus", "Unknow")
-            )
-        elif "_IN_PROGRESS" in latest_event.get("ResourceStatus"):
-            logger.info("Current status: '%s'", latest_event.get("ResourceStatus"))
-            logger.info("Sleeping for %ss", sleep_time)
-            time.sleep(sleep_time)
-            continue
-        else:
-            logger.info("Cf status completed")
-            logger.info("Status: %s", latest_event.get("ResourceStatus"))
-            break
+    cf = Session(profile_name=profile_name, region_name=region).client("cloudformation")
 
-    return True
+    result = cf.delete_stack(StackName=stack_name)
+
+    return result

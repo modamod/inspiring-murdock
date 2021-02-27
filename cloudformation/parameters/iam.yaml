@@ -1,0 +1,3 @@
+RepoName: salt
+S3Bucket: moda-salt-bucket
+StreamName: stream

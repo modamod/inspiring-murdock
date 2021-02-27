@@ -3,3 +3,8 @@ boto3
 moto @ git+https://github.com/modamod/moto.git@8ff285d1fe2da2b280d80e9e86d2b3c53ef76ea6
 pytest
 pyyaml
+pytest-cov
+pytest-pep8
+cfn-lint
+pytype
+pre-commit

@@ -1,0 +1,6 @@
+# list to determine stack oder
+stacks_order:
+  - iam
+  - deps
+  - net
+  - asgs
